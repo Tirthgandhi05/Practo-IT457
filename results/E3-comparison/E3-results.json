@@ -1,0 +1,38 @@
+[
+  {
+    "memory_mb": 256,
+    "scenario": "Cold",
+    "n": 15,
+    "matched": 15,
+    "median_client_ms": 771.407,
+    "mean_billed_ms": 579.8666666666667,
+    "cost_per_1000_usd": 0.004376115943333333
+  },
+  {
+    "memory_mb": 256,
+    "scenario": "Warm",
+    "n": 200,
+    "matched": 200,
+    "median_client_ms": 40.7735,
+    "mean_billed_ms": 11.44,
+    "cost_per_1000_usd": 0.002007666762
+  },
+  {
+    "memory_mb": 512,
+    "scenario": "Cold",
+    "n": 10,
+    "matched": 10,
+    "median_client_ms": 693.78,
+    "mean_billed_ms": 497.1,
+    "cost_per_1000_usd": 0.006102508285000001
+  },
+  {
+    "memory_mb": 512,
+    "scenario": "Warm",
+    "n": 100,
+    "matched": 100,
+    "median_client_ms": 69.72200000000001,
+    "mean_billed_ms": 6.91,
+    "cost_per_1000_usd": 0.0020175834485
+  }
+]

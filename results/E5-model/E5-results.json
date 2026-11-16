@@ -1,0 +1,57 @@
+{
+  "hours": 730,
+  "ec2_hourly_usd": 0.0112,
+  "ec2_fixed_usd": 8.176,
+  "scenarios": [
+    {
+      "assumed_cold_share": 0,
+      "serverless_usd_per_1000": 0.002007666762,
+      "crossover_requests_per_730h": 6300538.966875382,
+      "average_requests_per_second": 2.3974653603026566,
+      "both_cost_at_crossover_usd": 12.649382666481522
+    },
+    {
+      "assumed_cold_share": 0.01,
+      "serverless_usd_per_1000": 0.002031351253813333,
+      "crossover_requests_per_730h": 6187605.2839126615,
+      "average_requests_per_second": 2.3544921171661573,
+      "both_cost_at_crossover_usd": 12.56919975157799
+    },
+    {
+      "assumed_cold_share": 0.1,
+      "serverless_usd_per_1000": 0.002244511680133333,
+      "crossover_requests_per_730h": 5328079.353094002,
+      "average_requests_per_second": 2.0274274555152214,
+      "both_cost_at_crossover_usd": 11.958936340696741
+    },
+    {
+      "assumed_cold_share": 1,
+      "serverless_usd_per_1000": 0.004376115943333334,
+      "crossover_requests_per_730h": 2230153.1447382853,
+      "average_requests_per_second": 0.8486123077390736,
+      "both_cost_at_crossover_usd": 9.759408732764182
+    }
+  ],
+  "comparison": [
+    {
+      "requests": 100000,
+      "serverless_all_warm_usd": 0.20076667619999997,
+      "ec2_plus_ddb_usd": 8.247
+    },
+    {
+      "requests": 1000000,
+      "serverless_all_warm_usd": 2.007666762,
+      "ec2_plus_ddb_usd": 8.886
+    },
+    {
+      "requests": 5000000,
+      "serverless_all_warm_usd": 10.03833381,
+      "ec2_plus_ddb_usd": 11.725999999999999
+    },
+    {
+      "requests": 10000000,
+      "serverless_all_warm_usd": 20.07666762,
+      "ec2_plus_ddb_usd": 15.276
+    }
+  ]
+}
