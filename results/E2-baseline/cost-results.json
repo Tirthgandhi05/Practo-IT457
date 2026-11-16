@@ -1,0 +1,36 @@
+{
+  "prices": {
+    "region": "ap-south-1",
+    "captured_on": "2026-11-16",
+    "source": "User supplied AWS pricing screenshots",
+    "lambda_gb_second_usd": 1.66667e-05,
+    "lambda_requests_per_million_usd": 0.2,
+    "http_api_per_million_usd": 1.05,
+    "ddb_standard_writes_per_million_usd": 0.71,
+    "memory_mb": 256
+  },
+  "results": [
+    {
+      "scenario": "Cold",
+      "successful_samples": 15,
+      "matched_logs": 15,
+      "mean_billed_ms": 579.8666666666667,
+      "lambda_compute_usd": 0.0024161159433333337,
+      "lambda_requests_usd": 0.0002,
+      "http_api_usd": 0.0010500000000000002,
+      "dynamodb_usd": 0.0007099999999999999,
+      "subtotal_per_1000_usd": 0.004376115943333334
+    },
+    {
+      "scenario": "Warm",
+      "successful_samples": 200,
+      "matched_logs": 200,
+      "mean_billed_ms": 11.44,
+      "lambda_compute_usd": 4.7666762e-05,
+      "lambda_requests_usd": 0.0002,
+      "http_api_usd": 0.0010500000000000002,
+      "dynamodb_usd": 0.0007099999999999999,
+      "subtotal_per_1000_usd": 0.002007666762
+    }
+  ]
+}
