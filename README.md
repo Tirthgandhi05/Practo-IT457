@@ -225,9 +225,10 @@ Installing dependencies does not deploy resources or run an experiment. The Lamb
 
 Cold samples were collected by changing only `COLD_MARKER` in the Lambda console, waiting for the update to finish, and then sending one measured request from the laptop. The returned cold-start flag was checked. Warm samples followed a separate warmup request, which was excluded from the statistics.
 
+Opening the UI or calling `/health` also invokes Lambda and can consume a cold invocation. Avoid other requests during controlled cold sampling. Preserve `TABLE_NAME` when editing environment variables. After experiments, restore the intended baseline memory and `COLD_MARKER=initial`; manual configuration changes can cause CloudFormation drift.
+
 `client_ms` measures the round trip observed by the laptop. `handler_ms` measures work inside the handler. CloudWatch initialization, execution and billed duration describe different server-side intervals. Use billed duration for compute costs, not client latency.
 
-Opening the UI or calling `/health` also invokes Lambda and can consume a cold invocation. Avoid other requests during controlled cold sampling. Preserve `TABLE_NAME` when editing environment variables. After experiments, restore the intended baseline memory and `COLD_MARKER=initial`; manual configuration changes can cause CloudFormation drift.
 
 ## Limits of the work
 
@@ -262,11 +263,11 @@ The weekly breakdown is recorded in [contributions.md](contributions.md).
 
 - [E2 cost calculation](results/E2-baseline/E2-results.md)
 - [E3 memory comparison](results/E3-comparison/E3-results.md)
+- [API Gateway pricing](https://aws.amazon.com/api-gateway/pricing/)
+- [DynamoDB pricing](https://aws.amazon.com/dynamodb/pricing/on-demand/)
+- [EC2 pricing](https://aws.amazon.com/ec2/pricing/on-demand/)
 - [E5 pricing model](results/E5-model/E5-results.md)
 - [Practo — Scaling Microservices with Kubernetes on AWS](https://youtu.be/YgABcxC4pwQ)
 - [DynamoDB condition expressions](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.ConditionExpressions.html)
 - [Lambda INIT billing](https://aws.amazon.com/blogs/compute/aws-lambda-standardizes-billing-for-init-phase/)
 - [Lambda pricing](https://aws.amazon.com/lambda/pricing/)
-- [API Gateway pricing](https://aws.amazon.com/api-gateway/pricing/)
-- [DynamoDB pricing](https://aws.amazon.com/dynamodb/pricing/on-demand/)
-- [EC2 pricing](https://aws.amazon.com/ec2/pricing/on-demand/)
