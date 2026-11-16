@@ -1,0 +1,278 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "IT457 Practo-inspired booking and serverless experiments. Synthetic data only.",
+  "Parameters": {
+    "MemoryMB": {
+      "Type": "Number",
+      "Default": 256,
+      "AllowedValues": [
+        128,
+        256,
+        512,
+        1024
+      ]
+    }
+  },
+  "Resources": {
+    "Bookings": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "slot_key",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "slot_key",
+            "KeyType": "HASH"
+          }
+        ],
+        "SSESpecification": {
+          "SSEEnabled": true
+        }
+      }
+    },
+    "Logs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Sub": "/aws/lambda/${AWS::StackName}-booking"
+        },
+        "RetentionInDays": 7
+      }
+    },
+    "Role": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "booking-minimal",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "dynamodb:PutItem"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "Bookings",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "Logs",
+                      "Arn"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "BookingFunction": {
+      "Type": "AWS::Lambda::Function",
+      "DependsOn": [
+        "Logs"
+      ],
+      "Properties": {
+        "FunctionName": {
+          "Fn::Sub": "${AWS::StackName}-booking"
+        },
+        "Runtime": "python3.12",
+        "Handler": "index.lambda_handler",
+        "Architectures": [
+          "x86_64"
+        ],
+        "MemorySize": {
+          "Ref": "MemoryMB"
+        },
+        "Timeout": 10,
+        "Role": {
+          "Fn::GetAtt": [
+            "Role",
+            "Arn"
+          ]
+        },
+        "Environment": {
+          "Variables": {
+            "TABLE_NAME": {
+              "Ref": "Bookings"
+            },
+            "COLD_MARKER": "initial"
+          }
+        },
+        "Code": {
+          "ZipFile": "import base64\nimport json\nimport os\nimport re\nimport time\nimport uuid\nfrom datetime import datetime, timezone\n\nimport boto3\nfrom botocore.exceptions import ClientError\n\nTABLE = os.environ['TABLE_NAME']\nDDB = boto3.client('dynamodb')\nIS_COLD = True\nENVIRONMENT_ID = str(uuid.uuid4())\nHTML = '<!doctype html>\\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\\n<title>CareSlot | IT457 cloud experiment</title><style>\\n:root{font-family:Inter,system-ui,sans-serif;color:#183c3b;background:#f3f7f6}*{box-sizing:border-box}body{margin:0}header{background:#103e3c;color:white;padding:22px max(6vw,20px);display:flex;justify-content:space-between;align-items:center}.brand{font-size:25px;font-weight:750}.tag{font-size:12px;letter-spacing:1px}main{max-width:1080px;margin:50px auto;padding:0 24px}.eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:2px;color:#397c74}h1{font-size:clamp(32px,5vw,48px);line-height:1.1;margin:14px 0}p{line-height:1.7;color:#55706d}.grid{display:grid;grid-template-columns:1.1fr 1fr;gap:24px;margin-top:30px}.card{background:white;border:1px solid #dbe5e2;border-radius:18px;padding:28px}h2{font-size:19px;margin-top:0}label{display:block;font-size:13px;font-weight:650;margin:18px 0 7px}input,select,button{width:100%;font:inherit;padding:12px;border-radius:8px;border:1px solid #cbdad6;background:white}button{background:#176b60;color:white;border:0;margin-top:24px;cursor:pointer;font-weight:650}button:disabled{opacity:.6}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f2f6f5;padding:16px;border-radius:9px;font-size:12px;line-height:1.7}.badge{font-size:12px;padding:6px 10px;background:#e6f4ee;border-radius:20px;color:#176b60}.hint{font-size:12px}.status{font-size:21px;font-weight:700;margin:20px 0 8px}.error{color:#a03729}footer{margin-top:25px;font-size:12px;color:#627c77}@media(max-width:700px){.grid{grid-template-columns:1fr}main{margin-top:30px}.tag{display:none}}\\n</style></head><body><header><span class=\"brand\">CareSlot<span style=\"color:#8ad8b9\">.</span></span><span class=\"tag\">IT457 \u00b7 PRACTO-INSPIRED CLOUD EXPERIMENT</span></header>\\n<main><div class=\"eyebrow\">Serverless appointment booking</div><h1>One appointment.<br>One confirmed booking.</h1><p>A small cloud experiment exploring reliable bookings under concurrent demand.</p>\\n<div class=\"grid\"><section class=\"card\"><h2>Book a demo appointment</h2><span class=\"badge\">Synthetic data only</span><form id=\"booking\">\\n<label for=\"patient\">Demo patient alias</label><input id=\"patient\" value=\"Demo Patient\" maxlength=\"80\" required>\\n<label for=\"doctor\">Doctor</label><select id=\"doctor\"><option value=\"dr-101\">Dr. Meera Shah \u00b7 General physician</option><option value=\"dr-102\">Dr. Arjun Rao \u00b7 Dermatology</option><option value=\"dr-103\">Dr. Anaya Patel \u00b7 Pediatrics</option></select>\\n<label for=\"slot\">Appointment time (your device timezone)</label><input id=\"slot\" type=\"datetime-local\" step=\"1800\" required>\\n<button id=\"submit\" type=\"submit\">Confirm demo booking</button><p class=\"hint\">Fictional doctors. No real appointments, medical details, or patient data. Try submitting the same appointment twice.</p></form></section>\\n<section class=\"card\" aria-live=\"polite\"><h2>Booking result</h2><div id=\"status\" class=\"status\">Ready when you are</div><p id=\"message\">Choose an appointment and submit your booking.</p><pre id=\"result\">Your response will appear here.</pre><p class=\"hint\">A conflicting booking is rejected without replacing the first booking. Refreshing this page does not reset the database.</p></section></div>\\n<footer>Academic proof of concept \u00b7 Not affiliated with Practo \u00b7 Public demo without authentication</footer></main>\\n<script>\\nconst el=id=>document.getElementById(id);const d=new Date(Date.now()+86400000);d.setMinutes(0,0,0);el(\\'slot\\').value=new Date(d-d.getTimezoneOffset()*60000).toISOString().slice(0,16);\\nel(\\'booking\\').addEventListener(\\'submit\\',async e=>{e.preventDefault();el(\\'submit\\').disabled=true;const t=performance.now();try{const r=await fetch(\\'/book\\',{method:\\'POST\\',headers:{\\'content-type\\':\\'application/json\\'},body:JSON.stringify({patient:el(\\'patient\\').value,doctor:el(\\'doctor\\').value,slot:new Date(el(\\'slot\\').value).toISOString()})});const j=await r.json();el(\\'status\\').textContent=r.status===201?\\'Booking confirmed\\':r.status===409?\\'This slot is already booked\\':\\'Unable to book\\';el(\\'status\\').className=\\'status\\'+(r.ok?\\'\\':\\' error\\');el(\\'message\\').textContent=r.status===201?\\'Your demo appointment was saved.\\':r.status===409?\\'Choose another time. The original booking is protected.\\':j.error||j.message||\\'Please try again.\\';el(\\'result\\').textContent=\\'HTTP \\'+r.status+\\' \u00b7 \\'+Math.round(performance.now()-t)+\\' ms round trip\\\\n\\'+JSON.stringify(j,null,2);}catch(err){el(\\'status\\').textContent=\\'Connection failed\\';el(\\'message\\').textContent=err.message;}finally{el(\\'submit\\').disabled=false;}});\\n</script></body></html>\\n'\n\n\ndef lambda_handler(event, context):\n    global IS_COLD\n    cold, IS_COLD = IS_COLD, False\n    started = time.perf_counter()\n    rid = context.aws_request_id\n    http = event.get('requestContext', {}).get('http', {})\n    method, path = http.get('method'), event.get('rawPath', http.get('path', '/'))\n\n    def response(status, payload):\n        payload.update(cold_start=cold, request_id=rid, environment_id=ENVIRONMENT_ID,\n                       handler_ms=round((time.perf_counter() - started) * 1000, 3))\n        # No patient information or event body is logged.\n        print(json.dumps({'event': 'request', 'request_id': rid, 'status': status,\n                          'cold_start': cold, 'environment_id': ENVIRONMENT_ID,\n                          'handler_ms': payload['handler_ms']}))\n        return {'statusCode': status, 'headers': {\n            'content-type': 'application/json', 'cache-control': 'no-store',\n            'x-content-type-options': 'nosniff'}, 'body': json.dumps(payload)}\n\n    if method == 'GET' and path == '/':\n        return {'statusCode': 200, 'headers': {\n            'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store',\n            'x-content-type-options': 'nosniff', 'x-frame-options': 'DENY',\n            'content-security-policy': \"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'\"\n        }, 'body': HTML}\n    if method == 'GET' and path == '/health':\n        return response(200, {'status': 'ok', 'region': os.environ.get('AWS_REGION'),\n                              'note': 'Function health only; booking tests verify the database.'})\n    if method != 'POST' or path != '/book':\n        return response(404, {'error': 'Route not found'})\n    try:\n        raw = event.get('body') or ''\n        if len(raw) > 6000:\n            return response(413, {'error': 'Request too large'})\n        if event.get('isBase64Encoded'):\n            raw = base64.b64decode(raw, validate=True).decode('utf-8')\n        body = json.loads(raw)\n        if not isinstance(body, dict):\n            raise ValueError('JSON object required')\n        patient, doctor, slot = (body.get(k) for k in ('patient', 'doctor', 'slot'))\n        if not all(isinstance(v, str) and v.strip() for v in (patient, doctor, slot)):\n            raise ValueError('patient, doctor and slot must be nonempty strings')\n        patient, doctor, slot = patient.strip(), doctor.strip(), slot.strip()\n        if len(patient) > 80 or not re.fullmatch(r'[A-Za-z0-9_-]{1,80}', doctor):\n            raise ValueError('Patient: max 80 characters; doctor: letters, digits, hyphen, underscore, max 80')\n        if len(slot) > 40:\n            raise ValueError('Invalid slot')\n        dt = datetime.fromisoformat(slot.replace('Z', '+00:00'))\n        if dt.tzinfo is None or dt.utcoffset() is None:\n            raise ValueError('Slot must include a timezone offset')\n        dt = dt.astimezone(timezone.utc)\n        if dt.second or dt.microsecond or dt.minute not in (0, 30):\n            raise ValueError('Choose an exact half-hour slot')\n        if dt <= datetime.now(timezone.utc):\n            raise ValueError('Slot must be in the future')\n        canonical = dt.isoformat(timespec='seconds').replace('+00:00', 'Z')\n    except (ValueError, TypeError, UnicodeError) as exc:\n        return response(400, {'error': str(exc)})\n\n    key = doctor + '#' + canonical\n    try:\n        DDB.put_item(TableName=TABLE, Item={\n            'slot_key': {'S': key}, 'doctor': {'S': doctor},\n            'slot': {'S': canonical}, 'patient': {'S': patient},\n            'booked_at': {'S': datetime.now(timezone.utc).isoformat()},\n        }, ConditionExpression='attribute_not_exists(slot_key)')\n        return response(201, {'status': 'booked', 'slot_key': key})\n    except ClientError as exc:\n        if exc.response['Error']['Code'] == 'ConditionalCheckFailedException':\n            return response(409, {'status': 'already_booked', 'slot_key': key})\n        print(json.dumps({'event': 'database_error', 'request_id': rid,\n                          'code': exc.response['Error']['Code']}))\n        return response(503, {'error': 'Database unavailable; retry later'})\n"
+        }
+      }
+    },
+    "Api": {
+      "Type": "AWS::ApiGatewayV2::Api",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}-api"
+        },
+        "ProtocolType": "HTTP"
+      }
+    },
+    "Integration": {
+      "Type": "AWS::ApiGatewayV2::Integration",
+      "Properties": {
+        "ApiId": {
+          "Ref": "Api"
+        },
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": {
+          "Fn::GetAtt": [
+            "BookingFunction",
+            "Arn"
+          ]
+        },
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 15000
+      }
+    },
+    "HomeRoute": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "Api"
+        },
+        "RouteKey": "GET /",
+        "AuthorizationType": "NONE",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "BookRoute": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "Api"
+        },
+        "RouteKey": "POST /book",
+        "AuthorizationType": "NONE",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "HealthRoute": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "Api"
+        },
+        "RouteKey": "GET /health",
+        "AuthorizationType": "NONE",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "Stage": {
+      "Type": "AWS::ApiGatewayV2::Stage",
+      "Properties": {
+        "ApiId": {
+          "Ref": "Api"
+        },
+        "StageName": "$default",
+        "AutoDeploy": true,
+        "DefaultRouteSettings": {
+          "ThrottlingBurstLimit": 100,
+          "ThrottlingRateLimit": 50
+        }
+      }
+    },
+    "InvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "BookingFunction"
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Sub": "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*/*/*"
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "ApiUrl": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Api",
+          "ApiEndpoint"
+        ]
+      }
+    },
+    "FunctionName": {
+      "Value": {
+        "Ref": "BookingFunction"
+      }
+    },
+    "TableName": {
+      "Value": {
+        "Ref": "Bookings"
+      }
+    },
+    "LogGroup": {
+      "Value": {
+        "Ref": "Logs"
+      }
+    }
+  }
+}
