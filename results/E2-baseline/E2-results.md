@@ -20,6 +20,3 @@ CloudWatch exported memory as 256000000; the deployment is 256 MB, billed as 256
 A hypothetical 1,000 all-cold successful bookings cost $0.004376; 1,000 all-warm successful bookings cost $0.002008 in these included services. These are two scenarios, not a claim that production traffic is entirely cold or warm.
 Assumes one standard successful DynamoDB write per item <=1 KB, one HTTP API billing increment per call, and first-tier x86 on-demand rates. Excludes credits/free allowances, database storage, log ingestion/storage/querying, transfer, taxes, retries and failed/conflicting requests. It does not compute the full experiment invoice or production total cost.
 
-## Sources
-
-User screenshots of https://aws.amazon.com/lambda/pricing/, https://aws.amazon.com/api-gateway/pricing/, and https://aws.amazon.com/dynamodb/pricing/on-demand/ with Mumbai selected; request CSV and CloudWatch export supplied in this conversation.
